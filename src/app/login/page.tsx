@@ -198,6 +198,21 @@ function LoginInner() {
           <div style={{ textAlign: 'center', marginBottom: '32px' }}>
             <h1 style={{ color: '#fff', fontSize: '26px', fontWeight: '800', margin: 0, letterSpacing: '-0.02em' }}>LemariHub Admin</h1>
             <p style={{ color: '#94a3b8', fontSize: '13px', marginTop: '6px' }}>Masuk ke dashboard tim internal.</p>
+            <div style={{ marginTop: '12px' }}>
+              <span style={{ 
+                backgroundColor: 'rgba(59, 130, 246, 0.2)', 
+                color: '#60a5fa', 
+                fontSize: '10px', 
+                fontWeight: '700', 
+                padding: '4px 8px', 
+                borderRadius: '6px',
+                textTransform: 'uppercase',
+                letterSpacing: '0.5px',
+                border: '1px solid rgba(59, 130, 246, 0.3)'
+              }}>
+                Restored Version v1.0
+              </span>
+            </div>
           </div>
 
           {signedInButNotAdmin && (
