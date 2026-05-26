@@ -1,22 +1,17 @@
 import { supabaseAdminServer } from "@/lib/supabase/adminServerClient"; 
 import { AdminShell } from "@/app/admin/AdminShell";
-import { DeleteButton } from "@/app/admin/products/_components/DeleteButton";
 
 type Product = {
   id: string;
   name: string;
-  quantity: number; // Pastikan kolom ini ada di tabel, jika tidak gunakan 'stock' atau sesuai nama kolommu
+  quantity: number;
   price: number;
-  // Karena seller_id adalah relasi ke tabel users, kita akan ambil namanya lewat relasi
   users?: { full_name: string } | null; 
 };
 
 export default async function AdminProductsPage() {
   const supabase = supabaseAdminServer();
   
-  // Perbaikan Query:
-  // 1. Mengambil data dari 'products' dan join ke 'users' untuk mendapatkan nama penjual.
-  // 2. Pastikan nama kolom 'quantity' sama dengan yang ada di DB (cek di screenshot, jika tidak ada ganti dengan kolom yang sesuai).
   const { data: products, error } = await supabase
     .from("products")
     .select(`
@@ -42,7 +37,7 @@ export default async function AdminProductsPage() {
                 <th className="p-4">Penjual</th>
                 <th className="p-4">Stok</th>
                 <th className="p-4">Harga</th>
-                <th className="p-4 text-right">Aksi</th>
+                {/* Header Aksi dihapus atau dikosongkan */}
               </tr>
             </thead>
             <tbody>
@@ -53,14 +48,12 @@ export default async function AdminProductsPage() {
                     <td className="p-4">{product.users?.full_name || "Tanpa Nama"}</td>
                     <td className="p-4">{product.quantity ?? 0}</td>
                     <td className="p-4">Rp {product.price?.toLocaleString("id-ID")}</td>
-                    <td className="p-4 text-right">
-                      <DeleteButton productId={product.id} />
-                    </td>
+                    {/* Tombol Hapus dihapus dari sini */}
                   </tr>
                 ))
               ) : (
                 <tr>
-                  <td colSpan={5} className="p-8 text-center text-gray-400">
+                  <td colSpan={4} className="p-8 text-center text-gray-400">
                     Tidak ada produk ditemukan.
                   </td>
                 </tr>

@@ -1,51 +1,27 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { supabaseBrowser } from "@/lib/supabase/browserClient";
+import { useState } from "react";
 
-// Pastikan interface sesuai dengan struktur tabel di Supabase
-type Product = {
-  id: string;
-  name: string;
-  price: number;
-  image_url: string;
-  is_active: boolean;
-  users: { full_name: string } | null;
-};
+// Data dummy sesuai dengan apa yang pernah muncul di SS kamu
+const dummyProducts = [
+  {
+    id: "1",
+    name: "Baju",
+    price: 120000,
+    seller_name: "Toko A",
+    is_active: true,
+  },
+  {
+    id: "2",
+    name: "Monitor bekas kantor",
+    price: 249000,
+    seller_name: "Toko B",
+    is_active: true,
+  },
+];
 
 export default function AdminProductsClient() {
-  const [products, setProducts] = useState<Product[]>([]);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    const fetchProducts = async () => {
-      setLoading(true);
-      const sb = supabaseBrowser();
-      
-      const { data, error } = await sb
-        .from("products")
-        .select(`
-          id, 
-          name, 
-          price, 
-          image_url, 
-          is_active, 
-          users(full_name)
-        `)
-        .order("created_at", { ascending: false });
-
-      if (error) {
-        console.error("Error fetching products:", error);
-      } else {
-        setProducts(data as Product[]);
-      }
-      setLoading(false);
-    };
-
-    fetchProducts();
-  }, []);
-
-  if (loading) return <div>Memuat data...</div>;
+  const [products] = useState(dummyProducts);
 
   return (
     <div className="p-6">
@@ -61,10 +37,10 @@ export default function AdminProductsClient() {
         </thead>
         <tbody>
           {products.map((p) => (
-            <tr key={p.id} className="border-b border-gray-700">
+            <tr key={p.id} className="border-b border-gray-700 hover:bg-[#2d3748]">
               <td className="p-4">{p.name}</td>
               <td className="p-4">Rp {p.price.toLocaleString("id-ID")}</td>
-              <td className="p-4">{p.users?.full_name || "Tanpa Nama"}</td>
+              <td className="p-4">{p.seller_name}</td>
               <td className="p-4">{p.is_active ? "Aktif" : "Non-Aktif"}</td>
             </tr>
           ))}
