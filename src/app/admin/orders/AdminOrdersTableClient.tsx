@@ -5,6 +5,7 @@ import Image from "next/image";
 import { adminGet, adminPost } from "@/lib/admin/apiClient";
 import { useAdminToast } from "../_components/AdminToastProvider";
 import { supabaseBrowser } from "@/lib/supabase/browserClient";
+import { Search, Check, X, Eye, FileText, ImageIcon } from "lucide-react";
 
 export type OrderItemSummary = {
   order_id: string;
@@ -42,8 +43,6 @@ export function AdminOrdersTableClient({ initial }: Props) {
   const [isInitialLoading, setIsInitialLoading] = useState<boolean>(initial.length === 0);
   const [query, setQuery] = useState<string>("");
   const [activeFilter, setActiveFilter] = useState<FilterStatus>("all");
-
-  // State untuk Image Preview Modal
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
 
   const { pushToast } = useAdminToast();
@@ -65,23 +64,18 @@ export function AdminOrdersTableClient({ initial }: Props) {
 
     const channel = sb
       .channel("admin-orders-live")
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "orders" },
-        () => {
-          void refresh();
-        }
-      )
+      .on("postgres_changes", { event: "*", schema: "public", table: "orders" }, () => {
+        void refresh();
+      })
       .subscribe();
 
-    // Listener tombol ESC untuk menutup modal preview
     const handleEsc = (e: KeyboardEvent) => {
       if (e.key === "Escape") setPreviewUrl(null);
     };
     window.addEventListener("keydown", handleEsc);
 
     return () => {
-      sb.removeChannel(channel);
+      void sb.removeChannel(channel);
       window.removeEventListener("keydown", handleEsc);
     };
   }, [refresh]);
@@ -100,40 +94,36 @@ export function AdminOrdersTableClient({ initial }: Props) {
       }
       pushToast({
         kind: "success",
-        message: action === "approve" ? "Pembayaran diverifikasi!" : "Bukti ditolak."
+        message: action === "approve" ? "Pembayaran berhasil diverifikasi!" : "Bukti transfer ditolak."
       });
     } catch (e) {
       pushToast({ kind: "error", message: e instanceof Error ? e.message : "Terjadi kesalahan" });
     }
   }
 
-  function formatRupiah(amount: number | null | undefined): string {
+  const formatRupiah = (amount: number | null | undefined) => {
     if (!amount) return "Rp 0";
     return new Intl.NumberFormat("id-ID", {
       style: "currency",
       currency: "IDR",
       maximumFractionDigits: 0
     }).format(amount);
-  }
+  };
 
-  function getStatusStyle(order: OrderRow) {
+  const getStatusBadge = (order: OrderRow) => {
     if (order.payment_verified_at) {
-      return { bg: "rgba(34, 197, 94, 0.1)", color: "#22c55e", label: "Verified" };
+      return <span className="inline-flex items-center px-2 py-0.5 rounded font-bold text-[10px] bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 uppercase tracking-wide">Verified</span>;
     }
     if (order.status?.toLowerCase() === "pending" || order.payment_proof_url) {
-      return { bg: "rgba(234, 179, 8, 0.1)", color: "#eab308", label: "Pending" };
+      return <span className="inline-flex items-center px-2 py-0.5 rounded font-bold text-[10px] bg-amber-500/10 text-amber-400 border border-amber-500/20 uppercase tracking-wide">Pending</span>;
     }
-    return { bg: "rgba(239, 68, 68, 0.1)", color: "#ef4444", label: order.status || "Unknown" };
-  }
+    return <span className="inline-flex items-center px-2 py-0.5 rounded font-bold text-[10px] bg-rose-500/10 text-rose-400 border border-rose-500/20 uppercase tracking-wide">{order.status || "Unknown"}</span>;
+  };
 
   const filteredRows = useMemo(() => {
     let result = rows;
-
-    if (activeFilter === "pending") {
-      result = result.filter(o => !o.payment_verified_at);
-    } else if (activeFilter === "verified") {
-      result = result.filter(o => !!o.payment_verified_at);
-    }
+    if (activeFilter === "pending") result = result.filter(o => !o.payment_verified_at);
+    if (activeFilter === "verified") result = result.filter(o => !!o.payment_verified_at);
 
     const q = query.trim().toLowerCase();
     if (q) {
@@ -161,66 +151,68 @@ export function AdminOrdersTableClient({ initial }: Props) {
   let runningIndex = 0;
 
   return (
-    <div style={{ animation: 'fadeIn 0.5s ease' }}>
-      {/* Header & Filter Section */}
-      <div style={{ marginBottom: 20, display: "flex", flexDirection: "column", gap: "12px" }}>
-        <input
-          type="text"
-          placeholder="Cari Order ID, Buyer, atau Toko..."
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          className="input"
-          style={{ maxWidth: 400, width: "100%" }}
-        />
+    <div className="space-y-6 animate-in fade-in duration-300">
+      
+      {/* FILTER & SEARCH PANEL */}
+      <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between bg-[#0b1329] p-4 rounded-xl border border-slate-800/60 shadow-sm">
+        <div className="relative w-full sm:max-w-md">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" size={16} />
+          <input
+            type="text"
+            placeholder="Cari Order ID, Pembeli, atau Nama Toko..."
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            className="w-full pl-9 pr-4 py-2.5 bg-[#0f1938] border border-slate-800/80 rounded-lg text-sm text-slate-200 placeholder:text-slate-500 focus:outline-none focus:ring-1 focus:ring-indigo-500/50 focus:border-indigo-500 transition-all"
+          />
+        </div>
 
-        <div style={{ display: "flex", gap: "8px" }}>
-          {(["all", "pending", "verified"] as FilterStatus[]).map((f) => (
+        <div className="flex items-center gap-1.5 bg-[#0f1938] p-1.5 rounded-lg border border-slate-800/80">
+          {(["all", "pending", "verified"] as FilterStatus[]).map((filter) => (
             <button
-              key={f}
-              onClick={() => setActiveFilter(f)}
-              className={`btn btnSm ${activeFilter === f ? "btnPrimary" : ""}`}
-              style={{
-                textTransform: "capitalize",
-                backgroundColor: activeFilter === f ? "" : "transparent",
-                border: activeFilter === f ? "" : "1px solid rgba(148, 163, 184, 0.4)",
-                color: activeFilter === f ? "" : "#94a3b8",
-                padding: "6px 16px"
-              }}
+              key={filter}
+              onClick={() => setActiveFilter(filter)}
+              className={`px-4 py-1.5 rounded-md text-xs font-bold capitalize transition-all duration-200 ${
+                activeFilter === filter
+                  ? "bg-indigo-600 text-white shadow-md shadow-indigo-600/20"
+                  : "text-slate-400 hover:text-white hover:bg-[#16224f]"
+              }`}
             >
-              {f}
+              {filter === "all" ? "Semua" : filter}
             </button>
           ))}
         </div>
       </div>
 
-      {/* Tabel Utama */}
-      <div className="card" style={{ padding: 0, overflow: "hidden" }}>
-        <div style={{ overflowX: "auto" }}>
-          <table className="adminTable">
+      {/* TABLE WORKSPACE */}
+      <div className="bg-[#0b1329] rounded-xl border border-slate-800/60 shadow-inner overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="w-full text-left border-collapse">
             <thead>
-              <tr>
-                <th style={{ width: 40, textAlign: "right", paddingLeft: 16 }}>No.</th>
-                <th>Created</th>
-                <th>Order</th>
-                <th style={{ textAlign: "center" }}>Payment</th>
-                <th>Status</th>
-                <th>Amount</th>
-                <th>Buyer</th>
-                <th>Seller</th>
-                <th style={{ textAlign: "center", paddingRight: 16 }}>Action</th>
+              <tr className="bg-[#0f1938] border-b border-slate-800/80 text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                <th className="py-4 px-4 text-center w-12">No</th>
+                <th className="py-4 px-4">Tanggal</th>
+                <th className="py-4 px-4">Order info</th>
+                <th className="py-4 px-4 text-center">Payment ID</th>
+                <th className="py-4 px-4">Status</th>
+                <th className="py-4 px-4">Total Amount</th>
+                <th className="py-4 px-4">Pembeli</th>
+                <th className="py-4 px-4">Merchant</th>
+                <th className="py-4 px-4 text-center w-32">Verifikasi</th>
               </tr>
             </thead>
-            <tbody>
+            <tbody className="divide-y divide-slate-800/40 text-sm">
               {isInitialLoading && rows.length === 0 ? (
-                Array.from({ length: 5 }).map((_, idx) => (
-                  <tr key={idx} className="skeletonRow">
-                    {Array.from({ length: 9 }).map((_, i) => (<td key={i} style={{ padding: "12px" }}><span className="skeletonBox" /></td>))}
+                Array.from({ length: 4 }).map((_, idx) => (
+                  <tr key={idx} className="animate-pulse">
+                    {Array.from({ length: 9 }).map((_, i) => (
+                      <td key={i} className="p-4"><div className="h-4 bg-slate-800/50 rounded"></div></td>
+                    ))}
                   </tr>
                 ))
               ) : groupedRows.length === 0 ? (
                 <tr>
-                  <td colSpan={9} style={{ textAlign: "center", padding: "60px", color: "#64748b" }}>
-                    Tidak ada pesanan ditemukan.
+                  <td colSpan={9} className="text-center py-12 text-slate-500 text-xs italic">
+                    Tidak ada transaksi atau pesanan yang ditemukan.
                   </td>
                 </tr>
               ) : (
@@ -233,67 +225,74 @@ export function AdminOrdersTableClient({ initial }: Props) {
 
                   return (
                     <React.Fragment key={groupKey}>
-                      {/* Baris Header Grup */}
-                      <tr className="adminGroupRow">
-                        <td colSpan={9} className="small" style={{
-                          backgroundColor: "rgba(59, 130, 246, 0.08)",
-                          borderLeft: "4px solid #818cf8",
-                          padding: "10px 16px"
-                        }}>
-                          <span className="tech-label" style={{ fontWeight: 600 }}>
-                            {first.payment_id ? `GROUP: ${first.payment_id.slice(-8).toUpperCase()}` : "SINGLE ORDER"}
-                          </span>
-                          <span style={{ color: "#475569", margin: "0 8px" }}>•</span>
-                          <span style={{ color: "rgba(255,255,255,0.7)", fontSize: "11px" }}>{groupOrders.length} Pesanan</span>
+                      {/* Baris Pembatas Informasi Grup */}
+                      <tr className="bg-[#16224f]/40 border-l-4 border-indigo-500">
+                        <td colSpan={9} className="py-2.5 px-4 text-[11px] font-medium text-slate-400">
+                          <div className="flex items-center gap-2">
+                            <span className="font-mono bg-indigo-500/20 text-indigo-400 px-2 py-0.5 rounded font-bold border border-indigo-500/20">
+                              {first.payment_id ? `BATCH COMPONENT: ${first.payment_id.slice(-8).toUpperCase()}` : "SINGLE TRANSACTION"}
+                            </span>
+                            <span className="text-slate-600">•</span>
+                            <span className="text-slate-300 font-semibold">{groupOrders.length} item dalam struk ini</span>
+                          </div>
                         </td>
                       </tr>
-                      {/* Baris Data Order */}
+                      
+                      {/* Baris Detail Item di dalam Grup */}
                       {groupOrders.map((o, idx) => {
-                        const style = getStatusStyle(o);
                         return (
-                          <tr key={o.id}>
-                            <td style={{ textAlign: "right", color: "#64748b", paddingLeft: 16 }}>{++runningIndex}</td>
-                            <td className="small">{new Date(o.created_at).toLocaleDateString("id-ID")}</td>
-                            <td className="small">
-                              <div style={{ fontWeight: 600, color: "rgba(255,255,255,0.9)" }}>{o.order_code || o.id.slice(0, 8)}</div>
-                              <div style={{ fontSize: "11px", color: "#94a3b8" }}>{o.items?.[0]?.product_name || "Produk"}</div>
+                          <tr key={o.id} className="hover:bg-slate-800/30 transition-colors">
+                            <td className="py-3.5 px-4 text-center text-slate-500 font-medium">{++runningIndex}</td>
+                            <td className="py-3.5 px-4 text-slate-400 whitespace-nowrap text-xs">{new Date(o.created_at).toLocaleDateString("id-ID")}</td>
+                            <td className="py-3.5 px-4">
+                              <div className="font-bold text-white text-xs">{o.order_code || o.id.slice(0, 8)}</div>
+                              <div className="text-[11px] text-slate-500 max-w-[180px] truncate mt-0.5">{o.items?.[0]?.product_name || "Produk Retail"}</div>
                             </td>
-                            <td style={{ textAlign: "center", fontFamily: "monospace" }} className="small">
-                              {o.payment_id ? o.payment_id.slice(-6).toUpperCase() : "-"}
+                            <td className="py-3.5 px-4 text-center font-mono text-xs text-slate-500 font-semibold uppercase">
+                              {o.payment_id ? o.payment_id.slice(-6) : "-"}
                             </td>
-                            <td>
-                              <span style={{
-                                padding: "4px 10px", borderRadius: "99px", fontSize: "11px", fontWeight: 600,
-                                backgroundColor: style.bg, color: style.color, border: `1px solid ${style.color}40`
-                              }}>
-                                {style.label}
-                              </span>
-                            </td>
-                            <td className="small" style={{ fontWeight: 500 }}>{formatRupiah(o.total_amount || o.product_price)}</td>
-                            <td className="small">{o.buyer_full_name || "Guest"}</td>
-                            <td className="small">{o.seller_shop_name || "-"}</td>
+                            <td className="py-3.5 px-4">{getStatusBadge(o)}</td>
+                            <td className="py-3.5 px-4 font-bold text-slate-200">{formatRupiah(o.total_amount || o.product_price)}</td>
+                            <td className="py-3.5 px-4 text-slate-300 text-xs">{o.buyer_full_name || "Guest User"}</td>
+                            <td className="py-3.5 px-4 text-slate-300 text-xs font-medium">{o.seller_shop_name || "-"}</td>
 
-                            {/* Kolom Aksi (hanya muncul sekali per grup) */}
+                            {/* Kolom Aksi Tunggal khusus baris pertama grup */}
                             {idx === 0 && (
-                              <td rowSpan={groupOrders.length} style={{ textAlign: "center", verticalAlign: "middle", paddingRight: 16 }}>
+                              <td rowSpan={groupOrders.length} className="py-3.5 px-4 text-center vertical-middle border-l border-slate-800/60 bg-[#0f1938]/30">
                                 {hasProof ? (
-                                  <div style={{ display: "flex", flexDirection: "column", gap: "8px", alignItems: "center" }}>
+                                  <div className="flex flex-col gap-2 items-center justify-center">
                                     <button
                                       onClick={() => setPreviewUrl(proofUrl)}
-                                      className="btn btnGhost btnSm"
-                                      style={{ fontSize: "11px", padding: "6px 12px", width: "100%", whiteSpace: "nowrap" }}
+                                      className="inline-flex items-center justify-center gap-1.5 w-full px-2.5 py-1.5 bg-[#16224f] hover:bg-indigo-600 border border-indigo-500/20 hover:border-transparent text-indigo-300 hover:text-white text-[11px] font-bold uppercase tracking-wider rounded-lg shadow-sm transition-all"
                                     >
-                                      📄 View Proof
+                                      <Eye size={13} />
+                                      <span>Struk</span>
                                     </button>
                                     {!isVerified && (
-                                      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "6px", width: "100%" }}>
-                                        <button title="Approve" onClick={() => handleVerifyGroup(groupOrderIds, "approve")} className="btn btnPrimary btnSm" style={{ padding: "4px" }}>✓</button>
-                                        <button title="Reject" onClick={() => handleVerifyGroup(groupOrderIds, "reject")} className="btn btnDanger btnSm" style={{ padding: "4px" }}>✕</button>
+                                      <div className="flex gap-1.5 w-full">
+                                        <button 
+                                          type="button"
+                                          title="Setujui Pembayaran" 
+                                          onClick={() => handleVerifyGroup(groupOrderIds, "approve")} 
+                                          className="flex-1 inline-flex items-center justify-center p-1.5 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/20 rounded-lg transition-colors"
+                                        >
+                                          <Check size={14} />
+                                        </button>
+                                        <button 
+                                          type="button"
+                                          title="Tolak Bukti" 
+                                          onClick={() => handleVerifyGroup(groupOrderIds, "reject")} 
+                                          className="flex-1 inline-flex items-center justify-center p-1.5 bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/20 rounded-lg transition-colors"
+                                        >
+                                          <X size={14} />
+                                        </button>
                                       </div>
                                     )}
                                   </div>
                                 ) : (
-                                  <span style={{ fontSize: "11px", color: "#64748b", fontStyle: "italic" }}>No Proof</span>
+                                  <span className="text-[11px] text-slate-500 italic font-medium flex items-center justify-center gap-1 bg-slate-800/30 py-1.5 rounded-lg border border-slate-800/50">
+                                    <ImageIcon size={12} /> Belum Upload
+                                  </span>
                                 )}
                               </td>
                             )}
@@ -309,35 +308,50 @@ export function AdminOrdersTableClient({ initial }: Props) {
         </div>
       </div>
 
-      {/* COMPONENT: Modal Viewer Bukti Transfer (Gaya Modern Tech) */}
+      {/* COMPONENT: DIALOG PREVIEW MODAL */}
       {previewUrl && (
-        <div className="adminModalBackdrop" style={{ zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center' }} onClick={() => setPreviewUrl(null)}>
-          <div className="adminModal" style={{ width: '100%', maxWidth: '500px', margin: '20px', borderRadius: '16px', padding: '24px' }} onClick={(e) => e.stopPropagation()}>
-            <div className="row" style={{ justifyContent: 'space-between', marginBottom: '16px' }}>
-              <div className="adminModalTitle" style={{ fontSize: '18px', fontWeight: 600 }}>Bukti Transfer</div>
+        <div 
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[#050914]/80 backdrop-blur-sm animate-in fade-in duration-200"
+          onClick={() => setPreviewUrl(null)}
+        >
+          <div 
+            className="bg-[#0f1938] rounded-2xl max-w-lg w-full p-5 shadow-2xl shadow-black/50 border border-slate-700/80 flex flex-col max-h-[85vh] animate-in zoom-in-95 duration-200"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between pb-4 border-b border-slate-800">
+              <div className="flex items-center gap-2 text-white">
+                <FileText className="text-indigo-400" size={18} />
+                <h3 className="text-base font-bold tracking-tight">Detail Bukti Transfer</h3>
+              </div>
               <button
-                className="btnGhost"
+                type="button"
+                className="p-1 rounded-md text-slate-400 hover:bg-rose-500/20 hover:text-rose-400 transition-colors"
                 onClick={() => setPreviewUrl(null)}
-                style={{ border: 'none', background: 'transparent', cursor: 'pointer', fontSize: '20px', color: '#fff', opacity: 0.7 }}
               >
-                ×
+                <X size={18} />
               </button>
             </div>
-            <div className="adminModalBody">
-              <div style={{ position: 'relative', width: '100%', borderRadius: '12px', overflow: 'hidden', background: 'rgba(0,0,0,0.5)', border: '1px solid rgba(255,255,255,0.1)' }}>
+            
+            <div className="py-5 overflow-y-auto flex-1">
+              <div className="relative w-full rounded-xl overflow-hidden bg-[#0b1329] border border-slate-800/80 flex items-center justify-center shadow-inner min-h-[300px]">
                 <Image
                   src={previewUrl}
-                  alt="Bukti Transfer"
-                  width={1200}
-                  height={1600}
+                  alt="Struk Pembayaran"
+                  width={800}
+                  height={1100}
                   unoptimized
-                  style={{ width: '100%', maxHeight: '65vh', objectFit: 'contain', display: 'block', height: 'auto' }}
+                  className="w-full max-h-[55vh] object-contain block"
                 />
               </div>
             </div>
-            <div className="adminModalActions" style={{ marginTop: '20px', display: 'flex', justifyContent: 'flex-end' }}>
-              <button className="btn" onClick={() => setPreviewUrl(null)}>
-                Tutup Preview
+            
+            <div className="pt-4 border-t border-slate-800 flex justify-end">
+              <button 
+                type="button"
+                className="px-5 py-2 bg-[#16224f] hover:bg-indigo-600 border border-indigo-500/20 text-slate-200 hover:text-white text-xs font-bold tracking-wider uppercase rounded-lg transition-colors"
+                onClick={() => setPreviewUrl(null)}
+              >
+                Kembali
               </button>
             </div>
           </div>

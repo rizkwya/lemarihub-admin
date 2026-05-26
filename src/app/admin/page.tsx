@@ -4,6 +4,17 @@ import { useEffect, useState } from "react";
 import { adminGet } from "@/lib/admin/apiClient";
 import { supabaseBrowser } from "@/lib/supabase/browserClient";
 import { AdminShell } from "./AdminShell";
+import { 
+  Clock, 
+  Activity, 
+  ArrowUpRight, 
+  Users2, 
+  FileSpreadsheet,
+  AlertCircle,
+  Loader2,
+  Mail,
+  CircleDot
+} from "lucide-react";
 
 type AppRole = "buyer" | "verified_seller" | "admin" | "super_admin";
 
@@ -33,32 +44,36 @@ function formatRelativeTime(dateString: string) {
   return date.toLocaleDateString("id-ID", { day: 'numeric', month: 'short' });
 }
 
-// Badge dengan warna yang lebih serasi (Muted Theme) agar menyatu dengan dashboard
+// FIXED: High Contrast Dark Mode Badges
 function ActionBadge({ action }: { action: string }) {
   const text = action.toLowerCase();
-  let colors = { bg: 'rgba(71, 85, 105, 0.2)', text: '#94a3b8', border: 'rgba(148, 163, 184, 0.3)' };
-
+  
   if (text.includes("kyc")) {
-    colors = { bg: 'rgba(245, 158, 11, 0.1)', text: '#f59e0b', border: 'rgba(245, 158, 11, 0.2)' };
-  } else if (text.includes("role") || text.includes("promote")) {
-    colors = { bg: 'rgba(59, 130, 246, 0.1)', text: '#60a5fa', border: 'rgba(59, 130, 246, 0.2)' };
-  } else if (text.includes("order") || text.includes("verified")) {
-    colors = { bg: 'rgba(16, 185, 129, 0.1)', text: '#34d399', border: 'rgba(16, 185, 129, 0.2)' };
+    return (
+      <span className="inline-flex items-center px-2 py-0.5 rounded font-bold text-[10px] bg-amber-500/10 text-amber-400 border border-amber-500/20 uppercase tracking-wide">
+        {action}
+      </span>
+    );
+  }
+  
+  if (text.includes("role") || text.includes("promote") || text.includes("demote")) {
+    return (
+      <span className="inline-flex items-center px-2 py-0.5 rounded font-bold text-[10px] bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 uppercase tracking-wide">
+        {action}
+      </span>
+    );
+  }
+  
+  if (text.includes("order") || text.includes("verified") || text.includes("approve")) {
+    return (
+      <span className="inline-flex items-center px-2 py-0.5 rounded font-bold text-[10px] bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 uppercase tracking-wide">
+        {action}
+      </span>
+    );
   }
 
   return (
-    <span style={{
-      padding: '2px 10px',
-      borderRadius: '6px',
-      fontSize: '10px',
-      fontWeight: '600',
-      backgroundColor: colors.bg,
-      color: colors.text,
-      border: `1px solid ${colors.border}`,
-      display: 'inline-block',
-      textTransform: 'uppercase',
-      letterSpacing: '0.5px'
-    }}>
+    <span className="inline-flex items-center px-2 py-0.5 rounded font-bold text-[10px] bg-slate-500/10 text-slate-300 border border-slate-500/20 uppercase tracking-wide">
       {action}
     </span>
   );
@@ -121,85 +136,170 @@ export default function AdminHomePage() {
 
   return (
     <AdminShell current="overview">
-      {/* STATS CARDS */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '20px', marginBottom: '32px' }}>
-        <div className="card" style={{ padding: '24px' }}>
-          <div style={{ color: '#94a3b8', fontSize: '12px', fontWeight: '600', marginBottom: '8px' }}>TOTAL ORDERS</div>
-          <div style={{ fontSize: '32px', fontWeight: 'bold', color: '#fff' }}>124 <span style={{ color: '#10b981', fontSize: '14px' }}>↑ 12%</span></div>
+      <div className="space-y-8">
+        
+        {/* METRICS STATS CARDS */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+          {/* CARD 1: ORDERS */}
+          <div className="bg-[#0f1938] border border-slate-800/80 rounded-2xl p-5 shadow-md">
+            <div className="flex justify-between items-start">
+              <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Total Orders</div>
+              <div className="p-1.5 bg-emerald-500/10 text-emerald-400 rounded-lg">
+                <FileSpreadsheet size={15} />
+              </div>
+            </div>
+            <div className="mt-3 flex items-baseline gap-2">
+              <span className="text-2xl font-black text-white tracking-tight">124</span>
+              <span className="inline-flex items-center gap-0.5 text-[10px] font-bold text-emerald-400 bg-emerald-500/10 px-1.5 py-0.5 rounded">
+                <ArrowUpRight size={10} /> 12%
+              </span>
+            </div>
+          </div>
+
+          {/* CARD 2: KYC */}
+          <div className="bg-[#0f1938] border border-slate-800/80 rounded-2xl p-5 shadow-md">
+            <div className="flex justify-between items-start">
+              <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Pending KYC</div>
+              <div className="p-1.5 bg-amber-500/10 text-amber-400 rounded-lg">
+                <Clock size={15} />
+              </div>
+            </div>
+            <div className="mt-3 flex items-baseline gap-2">
+              <span className="text-2xl font-black text-white tracking-tight">8</span>
+              <span className="text-xs font-semibold text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded">Butuh review</span>
+            </div>
+          </div>
+
+          {/* CARD 3: ADMIN ONLINE */}
+          <div className="bg-[#0f1938] border border-slate-800/80 rounded-2xl p-5 shadow-md">
+            <div className="flex justify-between items-start">
+              <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Admin Online</div>
+              <div className="p-1.5 bg-indigo-500/10 text-indigo-400 rounded-lg">
+                <Users2 size={15} />
+              </div>
+            </div>
+            <div className="mt-3 flex items-baseline gap-2">
+              <span className="text-2xl font-black text-white tracking-tight">
+                {onlineAdmins.filter(a => a.online).length}
+              </span>
+              <span className="inline-flex items-center gap-1 text-xs font-semibold text-emerald-400">
+                <CircleDot size={12} className="animate-pulse text-emerald-500" /> Aktif
+              </span>
+            </div>
+          </div>
         </div>
-        <div className="card" style={{ padding: '24px' }}>
-          <div style={{ color: '#94a3b8', fontSize: '12px', fontWeight: '600', marginBottom: '8px' }}>PENDING KYC</div>
-          <div style={{ fontSize: '32px', fontWeight: 'bold', color: '#fff' }}>8 <span style={{ color: '#f59e0b', fontSize: '12px', fontWeight: 'normal' }}>Butuh review</span></div>
+
+        {/* WORKSPACE DATA WORKSPACE */}
+        <div className="grid grid-cols-1 xl:grid-cols-5 gap-6 items-start">
+          
+          {/* AREA 1: ADMIN ONLINE */}
+          <section className="bg-[#0f1938] border border-slate-800/80 rounded-2xl p-5 shadow-md xl:col-span-2">
+            <div className="flex items-center gap-2 mb-4 border-b border-slate-800/60 pb-3">
+              <div className="p-1 bg-slate-800 text-indigo-400 rounded-lg">
+                <Users2 size={14} />
+              </div>
+              <h3 className="text-xs font-bold uppercase tracking-wider text-white">Admin Online Sekarang</h3>
+            </div>
+            
+            {loadingOnline ? (
+              <div className="flex items-center justify-center py-10 gap-2 text-xs text-slate-400">
+                <Loader2 size={14} className="animate-spin text-indigo-400" />
+                <span>Memuat daftar admin...</span>
+              </div>
+            ) : (
+              <div className="overflow-hidden">
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left border-collapse text-xs">
+                    <thead>
+                      <tr className="text-slate-400 border-b border-slate-800 font-bold uppercase text-[10px] tracking-wider">
+                        <th className="pb-3 px-1">Email</th>
+                        <th className="pb-3 px-1 text-center">Role</th>
+                        <th className="pb-3 px-1 text-right">Status</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-800/40 text-slate-300">
+                      {onlineAdmins.map((a) => (
+                        <tr key={a.id} className="hover:bg-slate-800/20 transition-colors">
+                          <td className="py-3 px-1 text-white font-medium max-w-[160px] truncate">{a.email}</td>
+                          <td className="py-3 px-1 text-center text-slate-400 capitalize">{a.role.replace("_", " ")}</td>
+                          <td className="py-3 px-1 text-right">
+                            <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold ${
+                              a.online ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 'bg-slate-800 text-slate-500'
+                            }`}>
+                              <span className={`w-1.5 h-1.5 rounded-full ${a.online ? 'bg-emerald-400 animate-pulse' : 'bg-slate-600'}`} />
+                              {a.online ? "Online" : "Offline"}
+                            </span>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+          </section>
+
+          {/* AREA 2: ACTIVITY LOGS */}
+          <section className="bg-[#0f1938] border border-slate-800/80 rounded-2xl p-5 shadow-md xl:col-span-3">
+            <div className="flex items-center gap-2 mb-4 border-b border-slate-800/60 pb-3">
+              <div className="p-1 bg-slate-800 text-indigo-400 rounded-lg">
+                <Activity size={14} />
+              </div>
+              <h3 className="text-xs font-bold uppercase tracking-wider text-white">Aktivitas Admin Terbaru</h3>
+            </div>
+
+            {loadingActivity ? (
+              <div className="flex items-center justify-center py-10 gap-2 text-xs text-slate-400">
+                <Loader2 size={14} className="animate-spin text-indigo-400" />
+                <span>Memuat aktivitas...</span>
+              </div>
+            ) : activity.length === 0 ? (
+              <div className="text-center py-10 text-xs text-slate-500 italic flex flex-col items-center justify-center gap-2">
+                <AlertCircle size={16} className="text-slate-700" />
+                <span>Belum ada log aktivitas masuk.</span>
+              </div>
+            ) : (
+              <div className="overflow-hidden">
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left border-collapse text-xs">
+                    <thead>
+                      <tr className="text-slate-400 border-b border-slate-800 font-bold uppercase text-[10px] tracking-wider">
+                        <th className="pb-3 px-1">Waktu</th>
+                        <th className="pb-3 px-1">Admin</th>
+                        <th className="pb-3 px-1">Target</th>
+                        <th className="pb-3 px-1 text-right">Aksi</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-800/40 text-slate-300">
+                      {activity.map((log) => (
+                        <tr key={log.id} className="hover:bg-slate-800/20 transition-colors">
+                          <td className="py-3 px-1 text-slate-400 whitespace-nowrap">{formatRelativeTime(log.createdAt)}</td>
+                          <td className="py-3 px-1 font-medium text-white max-w-[140px] truncate" title={log.adminEmail ?? ""}>
+                            {log.adminEmail}
+                          </td>
+                          <td className="py-3 px-1 text-slate-400 max-w-[140px] truncate">
+                            {log.targetEmail ? (
+                              <div className="flex items-center gap-1">
+                                <Mail size={11} className="text-slate-600 flex-shrink-0" />
+                                <span>{log.targetEmail}</span>
+                              </div>
+                            ) : (
+                              <span className="text-slate-600">-</span>
+                            )}
+                          </td>
+                          <td className="py-3 px-1 text-right whitespace-nowrap">
+                            <ActionBadge action={log.action} />
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+          </section>
+
         </div>
-        <div className="card" style={{ padding: '24px' }}>
-          <div style={{ color: '#94a3b8', fontSize: '12px', fontWeight: '600', marginBottom: '8px' }}>ADMIN ONLINE</div>
-          <div style={{ fontSize: '32px', fontWeight: 'bold', color: '#fff' }}>{onlineAdmins.filter(a => a.online).length} <span style={{ color: '#10b981', fontSize: '12px', fontWeight: 'normal' }}>Aktif</span></div>
-        </div>
-      </div>
-
-      {/* LAYOUT ATAS-BAWAH (FULL WIDTH) */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '32px' }}>
-
-        {/* ADMIN ONLINE TABLE */}
-        <section className="card" style={{ padding: '24px' }}>
-          <div className="adminCardTitle" style={{ marginBottom: '20px' }}>Admin Online Sekarang</div>
-          {loadingOnline ? (
-            <div style={{ padding: '20px', color: '#94a3b8', fontSize: '13px' }}>Memuat daftar admin...</div>
-          ) : (
-            <table className="adminTable">
-              <thead>
-                <tr>
-                  <th>Email</th>
-                  <th>Role</th>
-                  <th>Status</th>
-                </tr>
-              </thead>
-              <tbody>
-                {onlineAdmins.map((a) => (
-                  <tr key={a.id}>
-                    <td style={{ color: '#fff', fontWeight: '500' }}>{a.email}</td>
-                    <td style={{ color: '#94a3b8' }}>{a.role}</td>
-                    <td>
-                      <span className={a.online ? "adminPillOnline" : "adminPillOffline"}>
-                        {a.online ? "Online" : "Offline"}
-                      </span>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          )}
-        </section>
-
-        {/* AKTIVITAS TERBARU TABLE */}
-        <section className="card" style={{ padding: '24px' }}>
-          <div className="adminCardTitle" style={{ marginBottom: '20px' }}>Aktivitas Admin Terbaru</div>
-          {loadingActivity ? (
-            <div style={{ padding: '20px', color: '#94a3b8', fontSize: '13px' }}>Memuat aktivitas terbaru...</div>
-          ) : (
-            <table className="adminTable">
-              <thead>
-                <tr>
-                  <th>Waktu</th>
-                  <th>Admin</th>
-                  <th>Target</th>
-                  <th>Aksi</th>
-                </tr>
-              </thead>
-              <tbody>
-                {activity.map((log) => (
-                  <tr key={log.id}>
-                    <td style={{ color: '#64748b', fontSize: '13px' }}>{formatRelativeTime(log.createdAt)}</td>
-                    <td style={{ color: '#fff', fontWeight: '500' }}>{log.adminEmail}</td>
-                    <td style={{ color: '#94a3b8' }}>{log.targetEmail ?? '-'}</td>
-                    <td><ActionBadge action={log.action} /></td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          )}
-        </section>
-
       </div>
     </AdminShell>
   );
