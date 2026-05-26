@@ -17,6 +17,8 @@ export default async function AdminProductsPage() {
   const { data: products } = await supabase
     .from("products")
     .select("id, name, quantity, seller_name, price");
+  
+    console.log("Data produk dari DB:", products);
 
   return (
     <AdminShell current="products">
