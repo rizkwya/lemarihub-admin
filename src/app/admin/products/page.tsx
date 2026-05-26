@@ -1,41 +1,33 @@
-// src/app/admin/products/page.tsx
-import { supabaseAdminServer } from "@/lib/supabase/adminServerClient"; 
-import { DeleteButton } from "@/app/admin/products/_components/DeleteButton";
+// src/app/admin/products/_components/DeleteButton.tsx
+"use client";
+import { supabaseBrowser } from "@/lib/supabase/browserClient"; 
+import { useRouter } from "next/navigation";
 
-type Product = {
-  id: string;
-  name: string;
-  quantity: number;
-  seller_name: string;
-  price: number;
-};
+export function DeleteButton({ productId }: { productId: string }) {
+  const router = useRouter();
+  const supabase = supabaseBrowser(); 
 
-export default async function AdminProductsPage() {
-  // Gunakan nama fungsi yang benar sesuai file lib
-  const supabase = supabaseAdminServer();
-  
-  const { data: products } = await supabase
-    .from("products")
-    .select("id, name, quantity, seller_name, price");
+  const handleDelete = async () => {
+    if (confirm("Yakin ingin menghapus produk ini?")) {
+      const { error } = await supabase
+        .from("products")
+        .delete()
+        .eq("id", productId);
+
+      if (error) {
+        alert("Gagal menghapus produk: " + error.message);
+      } else {
+        router.refresh(); // Ini akan memicu server component untuk fetch ulang data
+      }
+    }
+  };
 
   return (
-    <div className="p-6">
-      <h1 className="text-2xl font-bold mb-4">Daftar Semua Produk</h1>
-      <table className="w-full border-collapse">
-        {/* ... sisa kode tabel sama ... */}
-        <tbody>
-          {products?.map((product: Product) => (
-            <tr key={product.id} className="border-b">
-              <td className="p-2">{product.name}</td>
-              <td className="p-2">{product.seller_name}</td>
-              <td className="p-2">{product.quantity}</td>
-              <td className="p-2">
-                <DeleteButton productId={product.id} />
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
+    <button 
+      onClick={handleDelete} 
+      className="bg-red-500 hover:bg-red-600 text-white px-3 py-1 rounded transition-colors"
+    >
+      Hapus
+    </button>
   );
 }
