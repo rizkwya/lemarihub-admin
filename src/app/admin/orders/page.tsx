@@ -1,27 +1,29 @@
-"use client";
+'use client';
 
 import { AdminShell } from '../AdminShell';
 import { AdminOrdersTableClient } from './AdminOrdersTableClient';
-import { FileSpreadsheet } from 'lucide-react';
 
 export default function AdminOrdersPage() {
   return (
     <AdminShell current="orders">
-      {/* CARD OPERASIONAL UTAMA - DARK MODE */}
-      <section className="bg-[#0f1938] rounded-2xl border border-slate-800/80 shadow-lg shadow-black/20 p-6">
-        <div className="flex items-center gap-3 pb-5 mb-6 border-b border-slate-800/60">
-          <div className="p-2.5 bg-indigo-500/10 text-indigo-400 rounded-xl border border-indigo-500/20">
-            <FileSpreadsheet size={22} />
-          </div>
-          <div>
-            <h2 className="text-lg font-bold text-white tracking-tight">Validasi Transaksi Masuk</h2>
-            <p className="text-xs text-slate-400 mt-1 font-medium">
-              Menampilkan maksimal 200 data transaksi teranyar. Dashboard terintegrasi sistem Supabase Realtime secara otomatis.
-            </p>
-          </div>
+      {/* Container Header untuk Deskripsi */}
+      <div style={{ marginBottom: '24px' }}>
+        <p style={{ color: '#94a3b8', fontSize: '14px', margin: 0 }}>
+
+        </p>
+      </div>
+
+      <section className="card">
+        <div className="adminCardTitle" style={{ marginBottom: 4 }}>
+          Orders
+        </div>
+        <div className="small" style={{ marginBottom: 16, color: '#64748b' }}>
+          List terbaru (maksimal 200). Data akan terupdate otomatis jika ada pesanan baru.
         </div>
 
-        {/* INJEKSI WORKSPACE TABEL */}
+        {/* Pastikan AdminOrdersTableClient memiliki fungsi useEffect 
+           untuk fetch data saat pertama kali muncul.
+        */}
         <AdminOrdersTableClient initial={[]} />
       </section>
     </AdminShell>

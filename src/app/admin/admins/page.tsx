@@ -1,35 +1,21 @@
-import { Metadata } from "next";
+"use client";
+
 import { AdminShell } from '../AdminShell';
 import { AdminManageAdminsClient } from './AdminManageAdminsClient';
-import { Users } from 'lucide-react';
-
-export const metadata: Metadata = {
-  title: "Kelola Akses Admin | LemariHub Admin",
-  description: "Pengaturan manajemen otorisasi tingkat tinggi untuk staf operasional.",
-};
 
 export default function AdminAdminsPage() {
   return (
     <AdminShell current="admins">
-      {/* CARD CONTAINER UTAMA */}
-      <section className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">
-        
-        {/* PANEL DESKRIPSI LAYOUT */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-4 mb-5 border-b border-slate-100">
-          <div className="flex items-center gap-3">
-            <div className="p-2 bg-indigo-50 text-indigo-600 rounded-xl">
-              <Users size={22} />
-            </div>
-            <div>
-              <h2 className="text-base font-bold text-slate-900">Staf Manajemen Administrator</h2>
-              <p className="text-xs text-slate-400 mt-0.5">
-                Hak kontrol khusus tingkat <b>super_admin</b> untuk melakukan audit dan menurunkan tingkat kredensial akun staf.
-              </p>
-            </div>
-          </div>
+      <section className="card">
+        <div className="adminCardTitle" style={{ marginBottom: 4 }}>
+          Kelola Admin
+        </div>
+        <div className="small" style={{ marginBottom: 12 }}>
+          Hanya <b>super_admin</b> yang bisa mengelola daftar admin. Gunakan halaman ini untuk
+          mengecek siapa saja yang punya akses admin dan menurunkan role jika sudah tidak
+          dibutuhkan.
         </div>
 
-        {/* INJEKSI INTERACTIVE WORKSPACE CLIENT */}
         <AdminManageAdminsClient initial={[]} />
       </section>
     </AdminShell>

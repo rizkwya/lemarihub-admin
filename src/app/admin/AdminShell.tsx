@@ -6,11 +6,11 @@ import { useRouter } from "next/navigation";
 import { supabaseBrowser } from "@/lib/supabase/browserClient";
 import { requireAdminClient } from "@/lib/admin/guards";
 import { adminDelete, adminPost } from "@/lib/admin/apiClient";
-import { AdminToastProvider } from "./_components/AdminToastProvider";
-import { AdminRealtimeToasts } from "./_components/AdminRealtimeToasts";
-import { LayoutDashboard, ShoppingCart, ShieldCheck, Users, Menu, X, LogOut, UserCheck, Loader2 } from "lucide-react";
+import { AdminToastProvider, useAdminToast } from "./_components/AdminToastProvider";
+import { LayoutDashboard, ShoppingCart, ShieldCheck, Users } from "lucide-react";
 
 type AppRole = "buyer" | "verified_seller" | "admin" | "super_admin";
+
 type Me = { id: string; role: AppRole; email: string | null } | null;
 
 type AdminShellProps = {
@@ -21,17 +21,25 @@ type AdminShellProps = {
 export function AdminShell({ current, children }: AdminShellProps) {
   const router = useRouter();
   const [supabase, setSupabase] = useState<ReturnType<typeof supabaseBrowser> | null>(null);
+
   const [status, setStatus] = useState<"loading" | "ok">("loading");
   const [me, setMe] = useState<Me>(null);
   const [sidebarOpen, setSidebarOpen] = useState(true);
 
+  // Kirim heartbeat ke server supaya status "online" akurat.
   useEffect(() => {
     let cancelled = false;
+
     async function ping() {
       try {
+        // Gunakan adminPost supaya Authorization bearer token ikut terkirim
+        // dan server-side requireAdmin(req) tidak 401.
         await adminPost("/api/admin/heartbeat", {});
-      } catch { /* ignore */ }
+      } catch {
+        // abaikan error; hanya untuk presence.
+      }
     }
+
     void ping();
     const id = setInterval(() => {
       if (!cancelled) void ping();
@@ -45,11 +53,14 @@ export function AdminShell({ current, children }: AdminShellProps) {
 
   useEffect(() => {
     let mounted = true;
+
     async function run() {
       const result = await requireAdminClient();
       if (!mounted) return;
 
       if (!result.ok) {
+        // Kalau tidak punya akses admin (role bukan admin/super_admin) atau belum login,
+        // selalu lempar ke halaman login. Di sana sudah ada UI khusus untuk akun non-admin.
         router.replace("/login?redirectTo=/admin");
         return;
       }
@@ -57,8 +68,11 @@ export function AdminShell({ current, children }: AdminShellProps) {
       setStatus("ok");
       setMe({ id: result.userId, role: result.role, email: result.email });
     }
+
     void run();
-    return () => { mounted = false; };
+    return () => {
+      mounted = false;
+    };
   }, [router]);
 
   useEffect(() => {
@@ -67,22 +81,20 @@ export function AdminShell({ current, children }: AdminShellProps) {
 
   async function logout() {
     if (!supabase) return;
-    try { await adminDelete("/api/admin/heartbeat"); } catch { /* ignore */ }
+    // best-effort: hapus session online sebelum logout
+    try {
+      await adminDelete("/api/admin/heartbeat");
+    } catch {
+      // ignore
+    }
     await supabase.auth.signOut();
     router.replace("/");
   }
 
-  // FIXED: Premium Dark Mode Loading Animation
   if (status === "loading") {
     return (
-      <div className="flex h-screen w-screen flex-col items-center justify-center bg-[#0b1329] text-white font-sans">
-        <div className="flex flex-col items-center gap-4 p-6 rounded-2xl bg-[#111c40]/50 border border-slate-800 backdrop-blur-md">
-          <Loader2 className="h-10 w-10 animate-spin text-indigo-500" />
-          <div className="text-center">
-            <p className="text-sm font-semibold tracking-wide">Autentikasi Dekrit Admin...</p>
-            <p className="text-xs text-slate-500 mt-1">Menyiapkan Dashboard LemariHub</p>
-          </div>
-        </div>
+      <div className="container">
+        <h1>Loading…</h1>
       </div>
     );
   }
@@ -99,165 +111,288 @@ export function AdminShell({ current, children }: AdminShellProps) {
 
   const headerSubtitleMap: Record<AdminShellProps["current"], string> = {
     overview: "Monitoring order, KYC, dan aktivitas admin secara cepat.",
-    orders: "Review bukti transfer dan status pesanan konsumen.",
-    kyc: "Kelola pengajuan KYC dan verifikasi merchant/penjual.",
-    users: "Atur hak akses akun buyer, seller, admin, hingga super_admin.",
-    admins: "Manajemen kredensial dan akun internal tim admin.",
-  };
-
-  const getNavItemClass = (itemType: AdminShellProps["current"]) => {
-    const baseClass = "flex items-center justify-between px-4 py-3 rounded-xl text-sm font-medium transition-all duration-200 group mb-1.5";
-    return current === itemType
-      ? `${baseClass} bg-indigo-600 text-white shadow-lg shadow-indigo-600/20`
-      : `${baseClass} text-slate-400 hover:bg-[#16224f] hover:text-white`;
+    orders: "Review bukti transfer dan status pesanan.",
+    kyc: "Kelola pengajuan KYC dan verifikasi penjual.",
+    users: "Promosi / demote role buyer, seller, admin, dan super_admin.",
+    admins: "Kelola akun admin dan super_admin.",
   };
 
   return (
     <AdminToastProvider>
       <AdminRealtimeToasts currentAdminId={me?.id ?? null} />
-      
-      <div className="flex min-h-screen bg-[#0b1329] text-slate-100 font-sans antialiased">
-        
-        {/* SIDEBAR NAVIGATION */}
-        <aside 
-          className={`fixed inset-y-0 left-0 z-50 flex w-64 flex-col bg-[#0f1938] text-slate-100 border-r border-slate-800/60 transition-transform duration-300 ease-in-out lg:static lg:translate-x-0 ${
-            sidebarOpen ? "translate-x-0" : "-translate-x-full"
-          }`}
-        >
-          {/* Sidebar Header */}
-          <div className="flex h-20 items-center justify-between px-6 border-b border-slate-800/60">
-            <div className="flex items-center gap-3">
-              <div className="h-9 w-9 rounded-xl bg-indigo-600 flex items-center justify-center font-bold text-white text-base shadow-md shadow-indigo-600/30 tracking-wider">LH</div>
-              <span className="font-bold text-base bg-gradient-to-r from-white to-slate-300 bg-clip-text text-transparent">LemariHub Admin</span>
-            </div>
-            <button 
-              type="button" 
-              className="rounded-lg p-1.5 text-slate-400 hover:bg-[#16224f] hover:text-white lg:hidden"
+      <div className="adminShell">
+        <aside className="adminSidebar" style={{ display: sidebarOpen ? "flex" : "none" }}>
+          <div className="adminBrandRow">
+            <button
+              className="adminHamburger adminHamburger-inBrand"
+              type="button"
               onClick={() => setSidebarOpen(false)}
             >
-              <X size={18} />
+              <div className="adminHamburgerIcon">
+                <span />
+                <span />
+                <span />
+              </div>
             </button>
+            <div className="adminBrand">LemariHub Admin</div>
           </div>
 
-          {/* Sidebar Navigation Items */}
-          <div className="flex-1 overflow-y-auto px-4 py-6">
+          <div>
+            <div className="adminNavSectionTitle">Dashboard</div>
+            <div className="adminNavList">
+              <Link
+                href="/admin"
+                className={"adminNavItem" + (current === "overview" ? " adminNavItem-primary" : "")}
+              >
+                <div className="adminNavItemLabel" style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                  <LayoutDashboard size={18} /> {/* Ikon Dashboard */}
+                  <span>Overview</span>
+                </div>
+              </Link>
+            </div>
+          </div>
+
+          <div>
+            <div className="adminNavSectionTitle">Menu</div>
+            <div className="adminNavList">
+
+              <Link
+                href="/admin/orders"
+                className={"adminNavItem" + (current === "orders" ? " adminNavItem-primary" : "")}
+              >
+                <div className="adminNavItemLabel" style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                  <ShoppingCart size={18} /> {/* Ikon Keranjang */}
+                  <span>Orders &amp; Bukti Transfer</span>
+                </div>
+                {current === "orders" && <span className="adminNavItemBadge">Now</span>}
+              </Link>
+
+              <Link
+                href="/admin/kyc"
+                className={"adminNavItem" + (current === "kyc" ? " adminNavItem-primary" : "")}
+              >
+                <div className="adminNavItemLabel" style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                  <ShieldCheck size={18} />
+                  <span>KYC Approvals</span>
+                </div>
+                {current === "kyc" && <span className="adminNavItemBadge">Now</span>}
+              </Link>
+
+              <Link
+                href="/admin/users"
+                className={"adminNavItem" + (current === "users" ? " adminNavItem-primary" : "")}
+              >
+                <div className="adminNavItemLabel" style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                  <Users size={18} />
+                  <span>Users &amp; Roles</span>
+                </div>
+                {current === "users" && <span className="adminNavItemBadge">Now</span>}
+              </Link>
+
+            </div>
+          </div>
+
+          {isSuperAdmin && (
             <div>
-              <p className="px-3 text-[10px] font-bold uppercase tracking-widest text-slate-500 mb-4">Utama</p>
-              <nav>
-                <Link href="/admin" className={getNavItemClass("overview")}>
-                  <div className="flex items-center gap-3">
-                    <LayoutDashboard size={18} className={current === "overview" ? "text-white" : "text-slate-400 group-hover:text-indigo-400"} />
-                    <span>Overview</span>
+              <div className="adminNavSectionTitle">Super Admin</div>
+              <div className="adminNavList">
+                <Link
+                  href="/admin/admins"
+                  className={
+                    "adminNavItem" + (current === "admins" ? " adminNavItem-primary" : "")
+                  }
+                >
+                  <div className="adminNavItemLabel">
+                    <span>Kelola Admin</span>
                   </div>
+                  {current === "admins" && <span className="adminNavItemBadge">Now</span>}
                 </Link>
-              </nav>
+              </div>
             </div>
+          )}
 
-            <div className="mt-6">
-              <p className="px-3 text-[10px] font-bold uppercase tracking-widest text-slate-500 mb-4">Operasional</p>
-              <nav>
-                <Link href="/admin/orders" className={getNavItemClass("orders")}>
-                  <div className="flex items-center gap-3">
-                    <ShoppingCart size={18} className={current === "orders" ? "text-white" : "text-slate-400 group-hover:text-indigo-400"} />
-                    <span>Orders & Bukti</span>
-                  </div>
-                  {current === "orders" && <span className="text-[9px] bg-indigo-500/30 text-indigo-300 px-1.5 py-0.5 rounded font-bold uppercase">Live</span>}
-                </Link>
-
-                <Link href="/admin/kyc" className={getNavItemClass("kyc")}>
-                  <div className="flex items-center gap-3">
-                    <ShieldCheck size={18} className={current === "kyc" ? "text-white" : "text-slate-400 group-hover:text-indigo-400"} />
-                    <span>KYC Approvals</span>
-                  </div>
-                  {current === "kyc" && <span className="text-[9px] bg-indigo-500/30 text-indigo-300 px-1.5 py-0.5 rounded font-bold uppercase">Live</span>}
-                </Link>
-
-                <Link href="/admin/users" className={getNavItemClass("users")}>
-                  <div className="flex items-center gap-3">
-                    <Users size={18} className={current === "users" ? "text-white" : "text-slate-400 group-hover:text-indigo-400"} />
-                    <span>Users & Roles</span>
-                  </div>
-                  {current === "users" && <span className="text-[9px] bg-indigo-500/30 text-indigo-300 px-1.5 py-0.5 rounded font-bold uppercase">Live</span>}
-                </Link>
-              </nav>
-            </div>
-
-            {isSuperAdmin && (
-              <div className="mt-6">
-                <p className="px-3 text-[10px] font-bold uppercase tracking-widest text-slate-500 mb-4">Otoritas Tertinggi</p>
-                <nav>
-                  <Link href="/admin/admins" className={getNavItemClass("admins")}>
-                    <div className="flex items-center gap-3">
-                      <UserCheck size={18} className={current === "admins" ? "text-white" : "text-slate-400 group-hover:text-indigo-400"} />
-                      <span>Kelola Admin</span>
-                    </div>
-                  </Link>
-                </nav>
-              </div>
-            )}
-          </div>
-
-          {/* Sidebar Footer Profile */}
-          <div className="p-4 border-t border-slate-800/60 bg-[#0b1329]/60">
-            <div className="flex items-center gap-3 px-2 py-1">
-              <div className="h-9 w-9 rounded-xl bg-[#16224f] flex items-center justify-center font-bold text-sm text-indigo-400 border border-indigo-500/20 uppercase">
-                {me?.role?.charAt(0) ?? "A"}
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-xs font-semibold truncate text-white capitalize">{me?.role?.replace("_", " ")}</p>
-                <p className="text-[10px] text-slate-500 truncate mt-0.5">{me?.email ?? "admin@lemarihub.com"}</p>
-              </div>
+          <div className="adminSidebarFooter">
+            <div className="small">
+              Login sebagai
+              <br />
+              <b>{me?.role ?? "admin"}</b>
+              {me?.email ? ` · ${me.email}` : ""}
             </div>
           </div>
         </aside>
 
-        {/* CONTAINER UTAMA WORKSPACE PANEL */}
-        <div className="flex-1 flex flex-col min-w-0 overflow-x-hidden">
-          
-          {/* TOPBAR HEADER */}
-          <header className="sticky top-0 z-40 flex h-20 w-full items-center justify-between bg-[#0f1938]/80 backdrop-blur-md px-6 md:px-8 border-b border-slate-800/50 shadow-lg shadow-black/10">
-            <div className="flex items-center gap-4">
+        <main className="adminMain">
+          <header className="adminHeader">
+            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
               {!sidebarOpen && (
                 <button
+                  className="adminHamburger"
                   type="button"
-                  className="rounded-xl p-2 text-slate-400 hover:bg-[#16224f] hover:text-white"
                   onClick={() => setSidebarOpen(true)}
                 >
-                  <Menu size={20} />
+                  <div className="adminHamburgerIcon">
+                    <span />
+                    <span />
+                    <span />
+                  </div>
                 </button>
               )}
               <div>
-                <h1 className="text-lg font-bold text-white tracking-tight">{headerTitleMap[current]}</h1>
-                <p className="hidden sm:block text-xs text-slate-400 mt-1">{headerSubtitleMap[current]}</p>
+                <div className="adminHeaderTitle">{headerTitleMap[current]}</div>
+                <div className="adminHeaderSubtitle">{headerSubtitleMap[current]}</div>
               </div>
             </div>
-
-            {/* Profile Action Topbar */}
-            <div className="flex items-center gap-4">
-              <div className="hidden md:block text-right">
-                <span className="text-[10px] text-slate-500 block uppercase font-bold tracking-wider">Operator</span>
-                <span className="text-xs font-medium text-slate-300 truncate block max-w-[180px] mt-0.5">{me?.email}</span>
+            <div className="adminHeaderActions">
+              <div className="small" style={{ textAlign: "right" }}>
+                Halo <b>{me?.role ?? "admin"}</b>
+                {me?.email ? ` (${me.email})` : ""}
               </div>
-              
-              <div className="h-6 w-px bg-slate-800 hidden md:block"></div>
-
-              {/* FIXED: Logout Button Width Fix */}
-              <button 
-                className="inline-flex items-center gap-2 bg-[#16224f] hover:bg-rose-950/40 text-slate-200 hover:text-rose-400 px-4 py-2 rounded-xl text-xs font-semibold border border-indigo-500/20 hover:border-rose-500/30 transition-all duration-200 whitespace-nowrap" 
-                onClick={logout}
-              >
-                <LogOut size={13} />
-                <span>Keluar</span>
+              <button className="btn" onClick={logout}>
+                Logout
               </button>
             </div>
           </header>
 
-          {/* DYNAMIC VIEWPORT INJECTOR */}
-          <main className="flex-1 p-6 md:p-8 max-w-[1600px] w-full mx-auto">
-            {children}
-          </main>
-        </div>
+          {children}
+        </main>
       </div>
     </AdminToastProvider>
   );
+}
+
+function AdminRealtimeToasts({ currentAdminId }: { currentAdminId: string | null }) {
+  const { pushToast } = useAdminToast();
+
+  // Toast untuk bukti transfer baru yang di-upload pembeli.
+  useEffect(() => {
+    const sb = supabaseBrowser();
+
+    const channel = sb
+      .channel("admin-toast-orders")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "orders" },
+        (payload) => {
+          const newRow = (payload.new as { id?: string; payment_proof_url?: string | null } | null) ?? null;
+          const oldRow = (payload.old as { payment_proof_url?: string | null } | null) ?? null;
+
+          const before = !!(oldRow && oldRow.payment_proof_url && oldRow.payment_proof_url.trim().length > 0);
+          const after = !!(newRow && newRow.payment_proof_url && newRow.payment_proof_url.trim().length > 0);
+
+          // Hanya ketika sebelumnya tidak ada bukti transfer lalu sekarang ada.
+          if (!before && after && newRow?.id) {
+            pushToast({
+              kind: "info",
+              message: `Bukti transfer baru diunggah untuk order ${newRow.id}.`,
+            });
+          }
+        },
+      )
+      .subscribe();
+
+    return () => {
+      sb.removeChannel(channel);
+    };
+  }, [pushToast]);
+
+  // Toast untuk pengajuan KYC baru (status berubah menjadi pending_verification).
+  useEffect(() => {
+    const sb = supabaseBrowser();
+
+    const channel = sb
+      .channel("admin-toast-kyc")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "users" },
+        (payload) => {
+          const newStatus = (payload.new as { kyc_status?: string | null } | null)?.kyc_status;
+          const oldStatus = (payload.old as { kyc_status?: string | null } | null)?.kyc_status;
+
+          if (newStatus === "pending_verification" && oldStatus !== "pending_verification") {
+            pushToast({
+              kind: "info",
+              message: "Ada pengajuan KYC baru yang menunggu review.",
+            });
+          }
+        },
+      )
+      .subscribe();
+
+    return () => {
+      sb.removeChannel(channel);
+    };
+  }, [pushToast]);
+
+  // Toast untuk aktivitas admin penting (misalnya perubahan role / status KYC).
+  useEffect(() => {
+    const sb = supabaseBrowser();
+
+    const channel = sb
+      .channel("admin-toast-activity")
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "admin_activity_logs" },
+        (payload) => {
+          const row = payload.new as
+            | {
+              admin_user_id?: string | null;
+              action?: string | null;
+              from_role?: string | null;
+              to_role?: string | null;
+              from_kyc_status?: string | null;
+              to_kyc_status?: string | null;
+            }
+            | null;
+
+          if (!row) return;
+
+          const actorId = row.admin_user_id ?? null;
+
+          // Jangan munculkan notifikasi untuk aktivitas yang kita sendiri lakukan,
+          // karena biasanya sudah ada toast "success" lokal dari aksi tombol.
+          if (currentAdminId && actorId && actorId === currentAdminId) {
+            return;
+          }
+
+          const actionText = row.action ?? "";
+          const fromRole = row.from_role ?? null;
+          const toRole = row.to_role ?? null;
+          const fromKyc = row.from_kyc_status ?? null;
+          const toKyc = row.to_kyc_status ?? null;
+
+          // Susun pesan yang ringkas berdasarkan perubahan yang tercatat.
+          const parts: string[] = [];
+
+          if (fromRole !== toRole && toRole) {
+            if (toRole === "admin" || toRole === "super_admin") {
+              parts.push(`Role user dipromosikan menjadi ${toRole}.`);
+            } else if (fromRole) {
+              parts.push(`Role user diubah: ${fromRole} → ${toRole}.`);
+            } else {
+              parts.push(`Role user di-set ke ${toRole}.`);
+            }
+          }
+
+          if (fromKyc !== toKyc) {
+            parts.push(`Status KYC: ${fromKyc ?? "-"} → ${toKyc ?? "-"}.`);
+          }
+
+          const message = parts.join(" \u00b7 ") || actionText;
+
+          if (!message) return;
+
+          pushToast({
+            kind: "info",
+            message,
+          });
+        },
+      )
+      .subscribe();
+
+    return () => {
+      sb.removeChannel(channel);
+    };
+  }, [currentAdminId, pushToast]);
+
+  return null;
 }
