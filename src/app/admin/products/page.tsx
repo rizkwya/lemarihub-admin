@@ -5,20 +5,31 @@ import { DeleteButton } from "@/app/admin/products/_components/DeleteButton";
 type Product = {
   id: string;
   name: string;
-  quantity: number;
-  seller_name: string;
+  quantity: number; // Pastikan kolom ini ada di tabel, jika tidak gunakan 'stock' atau sesuai nama kolommu
   price: number;
+  // Karena seller_id adalah relasi ke tabel users, kita akan ambil namanya lewat relasi
+  users?: { full_name: string } | null; 
 };
 
 export default async function AdminProductsPage() {
   const supabase = supabaseAdminServer();
   
-  // Mengambil data dari tabel 'products'
-  const { data: products } = await supabase
+  // Perbaikan Query:
+  // 1. Mengambil data dari 'products' dan join ke 'users' untuk mendapatkan nama penjual.
+  // 2. Pastikan nama kolom 'quantity' sama dengan yang ada di DB (cek di screenshot, jika tidak ada ganti dengan kolom yang sesuai).
+  const { data: products, error } = await supabase
     .from("products")
-    .select("id, name, quantity, seller_name, price");
-  
-    console.log("Data produk dari DB:", products);
+    .select(`
+      id, 
+      name, 
+      quantity, 
+      price,
+      users(full_name)
+    `);
+
+  if (error) {
+    console.error("Supabase Error:", error);
+  }
 
   return (
     <AdminShell current="products">
@@ -36,11 +47,11 @@ export default async function AdminProductsPage() {
             </thead>
             <tbody>
               {products && products.length > 0 ? (
-                products.map((product: Product) => (
+                products.map((product: any) => (
                   <tr key={product.id} className="border-b border-gray-700 hover:bg-[#2d3748]">
                     <td className="p-4">{product.name}</td>
-                    <td className="p-4">{product.seller_name}</td>
-                    <td className="p-4">{product.quantity}</td>
+                    <td className="p-4">{product.users?.full_name || "Tanpa Nama"}</td>
+                    <td className="p-4">{product.quantity ?? 0}</td>
                     <td className="p-4">Rp {product.price?.toLocaleString("id-ID")}</td>
                     <td className="p-4 text-right">
                       <DeleteButton productId={product.id} />
